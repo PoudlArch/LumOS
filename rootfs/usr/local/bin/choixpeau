@@ -1,17 +1,46 @@
 #!/usr/bin/env bash
 # choixpeau — la cérémonie de la Répartition : trois questions, puis une maison.
-#   choixpeau            pose les questions
+#   choixpeau            pose les questions (fenêtre QML soignée si possible)
 #   choixpeau --choisir  laisse choisir directement sa maison
 set -u
 
 maisons=(gryffondor serpentard serdaigle poufsouffle)
+QML=/usr/share/lumos/choixpeau.qml
+
+graphique() { [[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]]; }
+qml_bin()   { command -v qml6 || command -v qml || command -v qml-qt6; }
+
+# ----- choix direct -----
+if [[ ${1:-} == --choisir ]]; then
+    if graphique && command -v kdialog >/dev/null; then
+        choix=$(kdialog --title "Le Choixpeau" --menu "Dans quelle maison veux-tu aller ?" \
+            gryffondor Gryffondor serpentard Serpentard serdaigle Serdaigle poufsouffle Poufsouffle) || exit 1
+    else
+        echo "Maisons : ${maisons[*]}"
+        read -rp "Ta maison : " choix || exit 1
+    fi
+    [[ " ${maisons[*]} " == *" $choix "* ]] && exec maison "$choix"
+    echo "Maison inconnue : $choix" >&2
+    exit 2
+fi
+
+# ----- cérémonie en fenêtre (QML) -----
+qbin=$(qml_bin 2>/dev/null || true)
+if graphique && [[ -n ${qbin:-} && -r $QML ]]; then
+    sortie=$("$qbin" "$QML" 2>&1)
+    elue=$(sed -n 's/.*LUMOS_MAISON=\([a-z]*\).*/\1/p' <<<"$sortie" | tail -1)
+    if [[ " ${maisons[*]} " == *" ${elue:-} "* ]]; then
+        exec maison "$elue"
+    fi
+    exit 1   # fenêtre fermée sans choix (annulée)
+fi
+
+# ----- cérémonie de repli (kdialog, sinon terminal) -----
+fenetre=0
+graphique && command -v kdialog >/dev/null && fenetre=1
 declare -A score=([gryffondor]=0 [serpentard]=0 [serdaigle]=0 [poufsouffle]=0)
 
-fenetre=0
-[[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]] && command -v kdialog >/dev/null && fenetre=1
-
-# demander "question" "maison|réponse"… : écrit la maison choisie, échoue si l'on annule
-demander() {
+demander() {   # "question" "maison|réponse"… -> écrit la maison choisie, échoue si annulé
     local question="$1" paire i=0 saisie
     shift
     if (( fenetre )); then
@@ -27,41 +56,33 @@ demander() {
         echo "${paire%%|*}"
     fi
 }
-
 annoncer() {
     if (( fenetre )); then kdialog --title "Le Choixpeau" --msgbox "$1"; else printf '\n%s\n' "$1"; fi
 }
 
-if [[ ${1:-} == --choisir ]]; then
-    choix="$(demander "Dans quelle maison veux-tu aller ?" \
-        "gryffondor|Gryffondor" "serpentard|Serpentard" "serdaigle|Serdaigle" "poufsouffle|Poufsouffle")" || exit 1
-    exec maison "$choix"
-fi
+annoncer "Hmm… voyons voir ce qu'il y a dans cette tête. Trois questions, et je saurai où te placer."
 
-annoncer "Hmm… voyons voir ce qu’il y a dans cette tête. Trois questions, et je saurai où te placer."
-
-reponse="$(demander "Au fond d’un vieux grenier, tu trouves…" \
-    "serdaigle|Un grimoire aux marges couvertes d’annotations" \
-    "gryffondor|Une épée rouillée qui semble t’attendre" \
+reponse="$(demander "Au fond d'un vieux grenier, tu trouves…" \
+    "serdaigle|Un grimoire aux marges couvertes d'annotations" \
+    "gryffondor|Une épée rouillée qui semble t'attendre" \
     "poufsouffle|Une boîte de recettes écrites à la main" \
     "serpentard|Un coffret fermé par un mécanisme ingénieux")" || exit 1
 (( score[$reponse]++ ))
 
 reponse="$(demander "Ton terminal affiche une erreur incompréhensible. Tu…" \
     "gryffondor|relances la commande avec sudo, on verra bien" \
-    "serpentard|trouves un contournement que personne n’avait vu" \
-    "serdaigle|lis le manuel jusqu’à comprendre pourquoi" \
-    "poufsouffle|demandes de l’aide, puis notes la solution pour les suivants")" || exit 1
+    "serpentard|trouves un contournement que personne n'avait vu" \
+    "serdaigle|lis le manuel jusqu'à comprendre pourquoi" \
+    "poufsouffle|demandes de l'aide, puis notes la solution pour les suivants")" || exit 1
 (( score[$reponse]++ ))
 
-reponse="$(demander "Ce que tu aimerais qu’on retienne de toi :" \
+reponse="$(demander "Ce que tu aimerais qu'on retienne de toi :" \
     "poufsouffle|Ta loyauté" \
     "serdaigle|Ton savoir" \
     "gryffondor|Ton courage" \
     "serpentard|Ton ambition")" || exit 1
 (( score[$reponse]++ ))
 
-# La maison la mieux placée l'emporte ; en cas d'égalité, le Choixpeau tranche au hasard.
 meilleur=0
 for m in "${maisons[@]}"; do (( score[$m] > meilleur )) && meilleur=${score[$m]}; done
 candidates=()

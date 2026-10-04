@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# lumos-outil — ouvre un outil de sécurité en terminal (appelé depuis le menu).
+# Affiche l'aide de l'outil puis laisse un shell prêt à l'emploi.
+#   lumos-outil <commande> [nom affiché]
+cmd=$1
+nom=${2:-$1}
+exec konsole -p "tabtitle=$nom" -e bash -c \
+    "printf '\e[1;33m✦ %s\e[0m\n\n' '$nom'; command -v '$cmd' >/dev/null && '$cmd' --help 2>&1 | less -RFX; exec bash"

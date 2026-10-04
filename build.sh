@@ -19,8 +19,8 @@ travail="${LUMOS_TRAVAIL:-/var/tmp/lumos-build}"
 sortie="${LUMOS_SORTIE:-$ici/out}"
 
 (( EUID == 0 )) || erreur "build.sh doit être lancé en root."
-for outil in mkarchiso rsvg-convert; do
-    command -v "$outil" >/dev/null || erreur "Outil manquant : $outil (pacman -S archiso librsvg ttf-liberation)"
+for outil in mkarchiso rsvg-convert python curl; do
+    command -v "$outil" >/dev/null || erreur "Outil manquant : $outil (pacman -S archiso librsvg ttf-liberation python curl)"
 done
 [[ -d $base ]] || erreur "Profil releng introuvable : $base"
 
@@ -56,6 +56,9 @@ mv "$travail/paquets" "$profil/packages.x86_64"
 info "Thème et fichiers de la session live"
 lumos_superposer "$racine"
 cp -a "$ici/iso/airootfs/." "$racine/"
+
+info "Menu des outils de sécurité (visible dans le lanceur Plasma)"
+python "$ici/tools/menu_securite.py" "$racine"
 
 info "Services"
 unites="$racine/etc/systemd/system"

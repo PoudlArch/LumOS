@@ -25,7 +25,7 @@ jobs:
       - name: Construire l'ISO dans un conteneur Arch
         run: |
           docker run --rm --privileged -v "$PWD:/depot" -w /depot archlinux:latest bash -c '
-            pacman -Syu --noconfirm --needed archiso librsvg ttf-liberation curl &&
+            pacman -Syu --noconfirm --needed archiso librsvg ttf-liberation curl python &&
             bash build.sh'
           sudo chown -R "$USER" out
           ls -lh out
