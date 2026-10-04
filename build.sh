@@ -32,18 +32,17 @@ cp -a "$base" "$profil"
 racine="$profil/airootfs"
 
 info "Dépôt BlackArch (outils de sécurité)"
-# pacstrap vérifie les signatures avec le trousseau de la machine de construction :
-# on y installe donc blackarch-keyring avant d'inscrire le dépôt dans le profil.
-if ! pacman-key -l blackarch &>/dev/null && ! pacman -Qq blackarch-keyring &>/dev/null; then
-    tmpkr="$travail/blackarch-keyring.pkg.tar.zst"
-    curl -fL "https://blackarch.org/keyring/blackarch-keyring.pkg.tar.zst" -o "$tmpkr"
-    pacman -U --noconfirm --needed "$tmpkr"
+# Méthode officielle : strap.sh installe le trousseau de clés BlackArch sur la
+# machine de construction (pacstrap vérifie ainsi les paquets signés) et ajoute
+# le dépôt [blackarch] à /etc/pacman.conf.
+if ! grep -q '^\[blackarch\]' /etc/pacman.conf; then
+    curl -fsSL https://blackarch.org/strap.sh -o "$travail/strap.sh"
+    chmod +x "$travail/strap.sh"
+    "$travail/strap.sh"
 fi
-pacman-key --populate blackarch
-# Dépôt côté machine de construction (pour pacstrap) et côté profil (pour l'ISO).
-blackarch_repo=$'\n[blackarch]\nServer = https://mirror.rackspace.com/blackarch/blackarch/os/$arch\nSigLevel = Required DatabaseOptional\n'
-grep -q '^\[blackarch\]' /etc/pacman.conf || printf '%s' "$blackarch_repo" >> /etc/pacman.conf
-grep -q '^\[blackarch\]' "$profil/pacman.conf" || printf '%s' "$blackarch_repo" >> "$profil/pacman.conf"
+# Recopie la définition du dépôt (ajoutée en fin de fichier par strap.sh) dans le
+# pacman.conf du profil pour que l'ISO en hérite.
+grep -q '^\[blackarch\]' "$profil/pacman.conf" || sed -n '/^\[blackarch\]/,$p' /etc/pacman.conf >> "$profil/pacman.conf"
 pacman -Sy
 
 info "Liste des paquets"

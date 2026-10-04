@@ -178,7 +178,7 @@ def sapin(rnd, x, base, h):
     return f'<path d="{d} Z"/>'
 
 
-def dessiner(nom, libelle, accent, ciel_haut, ciel_bas, lueur):
+def _scene(nom, libelle, accent, ciel_haut, ciel_bas, lueur):
     rnd = random.Random(1991)
     noir = '000000'
     pierre_g, pierre_d = mel(ciel_haut, noir, .5), mel(ciel_bas, noir, .55)
@@ -211,10 +211,7 @@ def dessiner(nom, libelle, accent, ciel_haut, ciel_bas, lueur):
     sapins_d = [sapin(rnd, x, H + 30, h) for x, h in
                 [(2110, 360), (2200, 500), (2300, 430), (2390, 640), (2480, 560), (2545, 700)]]
 
-    return f'''<?xml version="1.0" encoding="UTF-8"?>
-<!-- LumOS, fond d'écran {libelle}. Illustration originale générée par tools/dessiner_fonds.py -->
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 {L} {H}" width="{L}" height="{H}">
-<defs>
+    return f'''<defs>
   <linearGradient id="g-ciel" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#{ciel_haut}"/>
     <stop offset=".42" stop-color="{mel(ciel_haut, ciel_bas, .5)}"/>
@@ -352,6 +349,73 @@ def dessiner(nom, libelle, accent, ciel_haut, ciel_bas, lueur):
 </g>
 
 <rect id="vignette" width="{L}" height="{H}" fill="url(#g-vignette)"/>
+'''
+
+
+# Scène de marque (château neutre, nuit bleu-violet et or) pour le logo et le splash.
+MARQUE = dict(nom='lumos', libelle='LumOS', accent='d3a625',
+              ciel_haut='080612', ciel_bas='191232', lueur='6a4fb0')
+
+
+def dessiner(nom, libelle, accent, ciel_haut, ciel_bas, lueur):
+    """Fond d'écran complet (2560 x 1440)."""
+    corps = _scene(nom, libelle, accent, ciel_haut, ciel_bas, lueur)
+    return (f'<?xml version="1.0" encoding="UTF-8"?>\n'
+            f'<!-- LumOS, fond d\'écran {libelle}. Illustration originale générée par tools/dessiner_fonds.py -->\n'
+            f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+            f'viewBox="0 0 {L} {H}" width="{L}" height="{H}">\n{corps}</svg>\n')
+
+
+def dessiner_logo():
+    """Emblème : la scène du château enfermée dans un médaillon d'or (512 x 512)."""
+    return f'''<?xml version="1.0" encoding="UTF-8"?>
+<!-- LumOS, emblème : le château dans un médaillon d'or. Illustration originale. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512">
+<defs>
+  <clipPath id="c-medaillon"><circle cx="256" cy="256" r="232"/></clipPath>
+  <linearGradient id="g-or-anneau" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#fff3b8"/>
+    <stop offset=".25" stop-color="#d3a625"/>
+    <stop offset=".5" stop-color="#8a6510"/>
+    <stop offset=".75" stop-color="#e8c356"/>
+    <stop offset="1" stop-color="#a87a14"/>
+  </linearGradient>
+  <filter id="f-ombre-anneau" x="-30%" y="-30%" width="160%" height="160%">
+    <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity=".5"/>
+  </filter>
+</defs>
+<g clip-path="url(#c-medaillon)">
+  <svg x="0" y="0" width="512" height="512" viewBox="0 0 {L} {H}" preserveAspectRatio="xMidYMid slice">
+{_scene(**MARQUE)}</svg>
+</g>
+<circle cx="256" cy="256" r="232" fill="none" stroke="url(#g-or-anneau)" stroke-width="13" filter="url(#f-ombre-anneau)"/>
+<circle cx="256" cy="256" r="221" fill="none" stroke="#d3a625" stroke-width="1.5" opacity=".5"/>
+</svg>
+'''
+
+
+def dessiner_splash():
+    """Écran de démarrage (640 x 480) : la scène du château et le titre doré.
+    Le menu de démarrage (syslinux/GRUB) se pose par-dessus le centre."""
+    return f'''<?xml version="1.0" encoding="UTF-8"?>
+<!-- LumOS, écran de démarrage (640 x 480). Le menu de démarrage se pose par-dessus. -->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 640 480" width="640" height="480">
+<defs>
+  <linearGradient id="g-voile-haut" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#05040b" stop-opacity=".88"/>
+    <stop offset="1" stop-color="#05040b" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="g-or-titre" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff0b0"/>
+    <stop offset=".5" stop-color="#d3a625"/>
+    <stop offset="1" stop-color="#9a7212"/>
+  </linearGradient>
+</defs>
+<svg x="0" y="0" width="640" height="480" viewBox="0 0 {L} {H}" preserveAspectRatio="xMidYMid slice">
+{_scene(**MARQUE)}</svg>
+<rect width="640" height="150" fill="url(#g-voile-haut)"/>
+<text x="320" y="74" text-anchor="middle" font-family="Liberation Serif, DejaVu Serif, serif" font-size="46" letter-spacing="8" fill="url(#g-or-titre)">LumOS</text>
+<path d="M238 96 H402" stroke="#d3a625" stroke-width="1" opacity=".6"/>
 </svg>
 '''
 
@@ -368,6 +432,11 @@ def main():
         svg = dessiner(nom=c[0], libelle=c[1], accent=c[2], ciel_haut=c[11], ciel_bas=c[12], lueur=c[13])
         (sortie / f'{c[0]}.svg').write_text(svg, encoding='utf-8', newline='\n')
         print(f'{c[0]}.svg  {len(svg) // 1024} Ko')
+
+    assets = RACINE / 'assets'
+    (assets / 'logo.svg').write_text(dessiner_logo(), encoding='utf-8', newline='\n')
+    (assets / 'splash.svg').write_text(dessiner_splash(), encoding='utf-8', newline='\n')
+    print('logo.svg / splash.svg')
 
 
 if __name__ == '__main__':
