@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Applique le thème Lumos OS (maisons, sortilèges, Choixpeau) à un Arch Linux déjà
+# Applique le thème LumOS (maisons, sortilèges, Choixpeau) à un Arch Linux déjà
 # installé avec KDE Plasma, sans passer par l'ISO.
 #
 #   sudo ./install.sh                  installe

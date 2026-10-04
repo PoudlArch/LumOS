@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sortilege — toutes les incantations de Lumos OS.
+# sortilege — toutes les incantations de LumOS.
 # Chaque sortilège est un lien vers ce script : « accio firefox » revient à
 # « sortilege accio firefox ». La liste ci-dessous fait foi (liens et grimoire).
 set -u
@@ -116,7 +116,7 @@ case "$sort" in
         dire "Méfait accompli."
         exec systemctl poweroff ;;
     grimoire|--help|-h)
-        dire "Le grimoire de Lumos OS"
+        dire "Le grimoire de LumOS"
         {
             cat <<<"$GRIMOIRE"
             echo 'portus|[dossier]|te transporte dans un dossier'

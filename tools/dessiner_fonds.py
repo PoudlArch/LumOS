@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dessine les fonds d'écran de Lumos OS, un par maison, dans assets/fonds/.
+"""Dessine les fonds d'écran de LumOS, un par maison, dans assets/fonds/.
 
 Illustration originale (château sur un lac, la nuit), générée à partir de la
 palette de themes/maisons.conf. Le tirage aléatoire est figé : relancer le
@@ -212,7 +212,7 @@ def dessiner(nom, libelle, accent, ciel_haut, ciel_bas, lueur):
                 [(2110, 360), (2200, 500), (2300, 430), (2390, 640), (2480, 560), (2545, 700)]]
 
     return f'''<?xml version="1.0" encoding="UTF-8"?>
-<!-- Lumos OS, fond d'écran {libelle}. Illustration originale générée par tools/dessiner_fonds.py -->
+<!-- LumOS, fond d'écran {libelle}. Illustration originale générée par tools/dessiner_fonds.py -->
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 {L} {H}" width="{L}" height="{H}">
 <defs>
   <linearGradient id="g-ciel" x1="0" y1="0" x2="0" y2="1">

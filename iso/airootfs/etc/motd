@@ -1,9 +1,15 @@
 
-  ✦ Lumos OS, session live (basé sur Arch Linux)
+  ✦ LumOS, session live d'audit de sécurité (basé sur Arch Linux + BlackArch)
 
   Le bureau s'ouvre tout seul sur le compte « sorcier » (sans mot de passe).
   Depuis cette console :
     grimoire       la liste des sortilèges
+    accio <outil>  installer un outil (dépôt BlackArch en place)
     archinstall    installer Arch Linux sur le disque
     nmtui          régler le réseau
+
+  ⚡ Défense contre les Forces du Mal : n'emploie ces outils que sur des
+     systèmes qui t'appartiennent ou pour lesquels tu as une autorisation
+     écrite. Un sortilège lancé sur autrui sans accord, c'est de la magie noire
+     — et c'est puni par la loi (en France, art. 323-1 et suivants du Code pénal).
 

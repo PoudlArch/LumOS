@@ -1,0 +1,62 @@
+# Outils d'audit de sécurité ajoutés à LumOS (dépôts officiels + BlackArch).
+# Sélection volontairement resserrée pour garder l'ISO raisonnable ; on étoffe
+# ensuite depuis le système avec « accio <outil> » (le dépôt BlackArch est en place).
+#
+# Usage prévu : tests d'intrusion autorisés, forensic, formation, CTF. Voir le
+# cadre d'emploi rappelé dans le README et au démarrage de la session.
+
+# — Reconnaissance et cartographie réseau —
+nmap
+masscan
+dnsutils
+whois
+wireshark-qt
+tcpdump
+netcat
+socat
+rustscan
+
+# — Audit web —
+nikto
+sqlmap
+gobuster
+ffuf
+wfuzz
+whatweb
+dirb
+
+# — Mots de passe et chiffrement —
+john
+hashcat
+hydra
+hashid
+hcxtools
+
+# — Réseau sans fil —
+aircrack-ng
+reaver
+wifite
+
+# — Exploitation et post-exploitation —
+metasploit
+exploitdb
+responder
+crackmapexec
+
+# — Forensic et rétro-ingénierie —
+sleuthkit
+autopsy
+binwalk
+foremost
+radare2
+volatility3
+ddrescue
+
+# — Confidentialité et utilitaires —
+torbrowser-launcher
+proxychains-ng
+macchanger
+openbsd-netcat
+jq
+python-pip
+git

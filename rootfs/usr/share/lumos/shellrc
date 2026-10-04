@@ -1,4 +1,4 @@
-# Lumos OS — réglages du terminal, pour bash et zsh.
+# LumOS — réglages du terminal, pour bash et zsh.
 # Chargé depuis ~/.bashrc ou ~/.zshrc :  [ -r /usr/share/lumos/shellrc ] && . /usr/share/lumos/shellrc
 
 case $- in *i*) ;; *) return ;; esac

@@ -6,7 +6,7 @@ Target = filesystem
 Target = glibc
 
 [Action]
-Description = Identité de Lumos OS (os-release, langue française)...
+Description = Identité de LumOS (os-release, langue française)...
 When = PostTransaction
 Depends = bash
 Depends = sed

@@ -1,24 +1,31 @@
-<p align="center"><img src="assets/logo.svg" width="150" alt="Lumos OS"></p>
+<p align="center"><img src="assets/logo.svg" width="150" alt="LumOS"></p>
 
-# Lumos OS
+# LumOS
 
-Une distribution Linux à l'ambiance d'école de sorcellerie, basée sur **Arch Linux** et le bureau **KDE Plasma**.
-Au premier démarrage, le Choixpeau te pose trois questions et t'envoie dans une maison ; le bureau prend alors ses couleurs. Dans le terminal, on installe un paquet avec `accio`, on met à jour avec `reparo`, on éteint avec `mefait-accompli`.
+Une distribution Linux d'**audit de sécurité** à l'ambiance d'école de sorcellerie.
+Pensée comme une alternative à Kali Linux, mais bâtie sur **Arch Linux** + le dépôt **BlackArch** (~2800 outils de pentest, forensic et rétro-ingénierie) et le bureau **KDE Plasma**.
+
+Au premier démarrage, le Choixpeau te pose trois questions et t'envoie dans une maison ; le bureau prend alors ses couleurs. Dans le terminal, on installe un outil avec `accio`, on met à jour avec `reparo`, on éteint avec `mefait-accompli`.
 
 ![Les quatre maisons](assets/apercu.png)
 
-> Projet de fan, non officiel, sans but commercial et sans lien avec Warner Bros. ni J.K. Rowling. Il ne contient aucun logo, police ou illustration officiels : tous les dessins sont originaux.
+> Projet de fan, non officiel, sans but commercial et sans lien avec Warner Bros. ni J.K. Rowling. Aucun logo, police ou illustration officiels : tous les dessins sont originaux.
+
+## ⚡ Cadre d'emploi
+
+LumOS rassemble des outils de test d'intrusion. Ils sont destinés à des usages **légaux** : audit de tes propres systèmes, missions avec **autorisation écrite** du propriétaire, formation, CTF, forensic. Les employer contre des systèmes tiers sans accord est illégal (en France, articles 323-1 et suivants du Code pénal) et contraire à l'esprit du projet. Tu es seul responsable de ce que tu lances.
 
 ## Ce qu'il y a dedans
 
-- **Une ISO live** : elle démarre sur un bureau Plasma en français, compte `sorcier` sans mot de passe, avec les outils d'installation d'Arch (`archinstall`).
-- **Quatre maisons** (Gryffondor, Serpentard, Serdaigle, Poufsouffle) : chacune a son jeu de couleurs, son fond d'écran et sa couleur d'invite dans le terminal. Le thème clair « Parchemin » s'allume avec `lumos`.
+- **Une ISO live** : bureau Plasma en français, compte `sorcier` sans mot de passe, dépôt BlackArch déjà configuré, outils d'installation d'Arch (`archinstall`).
+- **Une trousse de sécurité** (voir [`iso/packages.security`](iso/packages.security)) : nmap, wireshark, metasploit, aircrack-ng, john, hashcat, hydra, sqlmap, ffuf, radare2, binwalk, volatility3… Le reste de BlackArch s'installe à la demande avec `accio`.
+- **Quatre maisons** (Gryffondor, Serpentard, Serdaigle, Poufsouffle) : chacune a son jeu de couleurs, son fond d'écran et sa couleur d'invite. Le thème clair « Parchemin » s'allume avec `lumos`.
 - **Le Choixpeau** : `choixpeau` relance la cérémonie, `choixpeau --choisir` laisse choisir, `maison serdaigle` change directement.
 - **Le grimoire** : les commandes du quotidien sous forme d'incantations.
 
 | Sortilège | Effet |
 | --- | --- |
-| `accio <paquet>` | installe un paquet |
+| `accio <paquet>` | installe un paquet (dépôts Arch + BlackArch) |
 | `evanesco <paquet>` | désinstalle un paquet |
 | `reparo` | met tout le système à jour |
 | `revelio <mot>` | cherche un paquet |
@@ -38,20 +45,20 @@ Au premier démarrage, le Choixpeau te pose trois questions et t'envoie dans une
 
 ## Obtenir l'ISO
 
-**Avec GitHub** (rien à installer) : onglet *Actions* › *ISO* › *Run workflow*. Au bout d'une demi-heure environ, l'ISO est téléchargeable dans les artefacts de l'exécution. Pousser une étiquette `v0.1` construit l'ISO et la joint à la version.
+**Avec GitHub** (rien à installer) : onglet *Actions* › *ISO* › *Run workflow*. L'ISO est téléchargeable dans les artefacts de l'exécution. Pousser une étiquette `v0.1` construit l'ISO et la joint à la version.
 
 **Sur une machine Arch Linux** :
 
 ```bash
-sudo pacman -S --needed archiso librsvg ttf-liberation
+sudo pacman -S --needed archiso librsvg ttf-liberation curl
 sudo ./build.sh
 ```
 
-L'ISO arrive dans `out/`. Pour l'essayer : VirtualBox ou VMware (4 Go de mémoire, EFI ou BIOS), ou une clé USB écrite avec Ventoy, Rufus ou `dd`.
+L'ISO arrive dans `out/`. `build.sh` installe le trousseau de clés BlackArch sur la machine de construction et ajoute le dépôt au système (pour que `pacstrap` puisse vérifier les paquets signés). Pour l'essayer : VirtualBox ou VMware (4 Go de mémoire), ou une clé USB (Ventoy, Rufus, `dd`).
 
 ## Mettre le thème sur un Arch déjà installé
 
-Sur un Arch Linux avec KDE Plasma, sans passer par l'ISO :
+Sur un Arch Linux avec KDE Plasma, sans passer par l'ISO (applique le thème, pas les outils de sécurité) :
 
 ```bash
 sudo ./install.sh
@@ -65,20 +72,20 @@ Le Choixpeau se présente à la prochaine ouverture de session. `sudo ./install.
 | --- | --- |
 | `themes/maisons.conf` | la palette : source unique des couleurs et des fonds d'écran |
 | `rootfs/` | les fichiers du thème, posés tels quels dans le système (ISO et `install.sh`) |
-| `iso/` | ce qui ne concerne que l'ISO : paquets ajoutés ou retirés, session live |
+| `iso/` | ce qui ne concerne que l'ISO : paquets ajoutés/retirés, outils de sécurité, session live |
 | `assets/` | logo, écran de démarrage, fonds d'écran (SVG) |
 | `tools/` | fonctions communes et générateur des fonds d'écran |
 | `build.sh` | construit l'ISO à partir du profil officiel `releng` d'archiso |
 | `install.sh` | applique le thème à un système existant |
 
-Changer une couleur : modifier `themes/maisons.conf`, puis `python tools/dessiner_fonds.py` pour redessiner les fonds. Ajouter un sortilège : une ligne dans le tableau et un cas dans `rootfs/usr/local/bin/sortilege`.
+Changer une couleur : modifier `themes/maisons.conf`, puis `python tools/dessiner_fonds.py`. Ajouter un outil par défaut : une ligne dans `iso/packages.security`. Ajouter un sortilège : une ligne dans le tableau et un cas dans `rootfs/usr/local/bin/sortilege`.
 
 ## État et suite
 
-Version de départ : l'ISO n'a pas encore été construite ni démarrée, la première construction dira ce qu'il reste à ajuster.
+Version de départ : l'ISO n'a pas encore été construite ni démarrée ; la première construction dira ce qu'il reste à ajuster (surtout la liste BlackArch et la taille de l'ISO).
 
-À venir : installateur graphique (Calamares) pour que le système installé garde le thème, écran de connexion et animation de démarrage aux couleurs des maisons, sons, icônes, dépôt de paquets.
+À venir : installateur graphique (Calamares) pour que le système installé garde le thème, menu des outils rangé par « matière » (Défense, Divination, Métamorphose…), écran de connexion et animation de démarrage aux couleurs des maisons.
 
 ## Licence
 
-Code et illustrations sous licence MIT (voir `LICENSE`). Arch Linux et KDE sont des marques de leurs détenteurs respectifs ; les noms tirés de l'univers de Harry Potter appartiennent à leurs ayants droit.
+Code et illustrations sous licence MIT (voir `LICENSE`). Arch Linux, BlackArch et KDE sont des marques de leurs détenteurs respectifs ; les noms tirés de l'univers de Harry Potter appartiennent à leurs ayants droit.

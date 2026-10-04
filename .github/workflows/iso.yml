@@ -25,7 +25,7 @@ jobs:
       - name: Construire l'ISO dans un conteneur Arch
         run: |
           docker run --rm --privileged -v "$PWD:/depot" -w /depot archlinux:latest bash -c '
-            pacman -Syu --noconfirm --needed archiso librsvg ttf-liberation &&
+            pacman -Syu --noconfirm --needed archiso librsvg ttf-liberation curl &&
             bash build.sh'
           sudo chown -R "$USER" out
           ls -lh out
@@ -53,4 +53,4 @@ jobs:
             fi
           done
           gh release create "$GITHUB_REF_NAME" ./* --repo "$GITHUB_REPOSITORY" \
-            --title "Lumos OS $GITHUB_REF_NAME" --generate-notes
+            --title "LumOS $GITHUB_REF_NAME" --generate-notes

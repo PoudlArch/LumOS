@@ -1,5 +1,5 @@
 [Unit]
-Description=Lumos OS : préparation de la session live
+Description=LumOS : préparation de la session live
 After=systemd-sysusers.service
 Before=display-manager.service sddm.service
 

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Lumos OS, fond du menu de démarrage BIOS (640 x 480). Le menu occupe le centre et le bas. -->
+<!-- LumOS, fond du menu de démarrage BIOS (640 x 480). Le menu occupe le centre et le bas. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" width="640" height="480">
 <defs>
   <linearGradient id="g-ciel" x1="0" y1="0" x2="0" y2="1">
@@ -40,6 +40,6 @@
   <path d="M320 22 Q322 48 348 50 Q322 52 320 78 Q318 52 292 50 Q318 48 320 22 Z" fill="#fffbe6"/>
 </g>
 
-<text x="320" y="118" text-anchor="middle" font-family="Liberation Serif, DejaVu Serif, serif" font-size="40" letter-spacing="6" fill="url(#g-or)">LUMOS OS</text>
+<text x="320" y="118" text-anchor="middle" font-family="Liberation Serif, DejaVu Serif, serif" font-size="42" letter-spacing="7" fill="url(#g-or)">LumOS</text>
 <path d="M214 134 H426" stroke="#d3a625" stroke-width="1" opacity=".6"/>
 </svg>
