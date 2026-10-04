@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Lumos OS : cérémonie de la Répartition
+Exec=/usr/local/bin/lumos-premiere-connexion
+Icon=preferences-desktop-theme
+OnlyShowIn=KDE;
+NoDisplay=true

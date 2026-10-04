@@ -1,0 +1,52 @@
+# Paquets ajoutés à ceux du profil releng d'archiso.
+
+# Bureau KDE Plasma
+plasma-desktop
+sddm
+sddm-kcm
+plasma-nm
+plasma-pa
+kscreen
+powerdevil
+bluedevil
+breeze
+breeze-gtk
+kde-gtk-config
+xdg-desktop-portal-kde
+plasma-systemmonitor
+xorg-server
+xorg-xwayland
+
+# Applications
+konsole
+dolphin
+kate
+ark
+gwenview
+spectacle
+kdialog
+firefox
+firefox-i18n-fr
+
+# Son
+pipewire
+pipewire-pulse
+pipewire-alsa
+pipewire-jack
+wireplumber
+
+# Réseau
+networkmanager
+
+# Polices
+noto-fonts
+noto-fonts-emoji
+ttf-liberation
+
+# Machines virtuelles (affichage, presse-papiers)
+virtualbox-guest-utils
+spice-vdagent
+
+# Lumos
+fastfetch
+librsvg

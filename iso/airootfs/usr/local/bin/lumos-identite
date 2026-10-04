@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Pose l'identité de Lumos OS (os-release) et prépare la langue française.
+# Appelé par le hook pacman 50-lumos-identite.hook : pendant la construction de
+# l'ISO, puis à chaque mise à jour des paquets filesystem ou glibc.
+set -u
+
+cat > /usr/lib/os-release <<'EOF'
+NAME="Lumos OS"
+PRETTY_NAME="Lumos OS"
+ID=lumos
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;211;166;37"
+LOGO=archlinux-logo
+EOF
+
+if grep -q '^#fr_FR\.UTF-8' /etc/locale.gen 2>/dev/null; then
+    sed -i -e 's/^#\(fr_FR\.UTF-8\)/\1/' -e 's/^#\(en_US\.UTF-8\)/\1/' /etc/locale.gen
+    locale-gen
+fi

@@ -1,0 +1,12 @@
+[Unit]
+Description=Lumos OS : préparation de la session live
+After=systemd-sysusers.service
+Before=display-manager.service sddm.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/lumos-live-preparer
+
+[Install]
+WantedBy=multi-user.target

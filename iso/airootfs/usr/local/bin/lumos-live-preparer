@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Session live : crée le compte « sorcier » (sans mot de passe) avant l'ouverture
+# de SDDM. Le dossier personnel part de /etc/skel.
+set -u
+
+id sorcier &>/dev/null && exit 0
+
+useradd -m -c "Sorcier" -G wheel -s /usr/bin/bash sorcier
+passwd -d sorcier >/dev/null
+
+perso=/home/sorcier
+mkdir -p "$perso/.config"
+# Clavier français dans Plasma
+printf '[Layout]\nLayoutList=fr\nUse=true\n' > "$perso/.config/kxkbrc"
+printf '\n[ -r /usr/share/lumos/shellrc ] && . /usr/share/lumos/shellrc\n' >> "$perso/.bashrc"
+chown -R sorcier:sorcier "$perso"

@@ -1,0 +1,4 @@
+# Paquets du profil releng à retirer de l'ISO.
+
+# Remplacé par virtualbox-guest-utils (version avec affichage graphique)
+virtualbox-guest-utils-nox

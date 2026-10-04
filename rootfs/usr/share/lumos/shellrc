@@ -1,0 +1,38 @@
+# Lumos OS — réglages du terminal, pour bash et zsh.
+# Chargé depuis ~/.bashrc ou ~/.zshrc :  [ -r /usr/share/lumos/shellrc ] && . /usr/share/lumos/shellrc
+
+case $- in *i*) ;; *) return ;; esac
+
+# Couleur de l'invite selon la maison
+case "$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/lumos/maison" 2>/dev/null)" in
+    gryffondor)  _lumos_c='226;78;78' ;;
+    serpentard)  _lumos_c='84;200;134' ;;
+    serdaigle)   _lumos_c='110;165;255' ;;
+    poufsouffle) _lumos_c='240;200;70' ;;
+    *)           _lumos_c='211;166;37' ;;
+esac
+
+if [ -n "${BASH_VERSION:-}" ]; then
+    PS1='\[\e[38;2;'"$_lumos_c"'m\]ϟ \u\[\e[0m\] \[\e[38;2;211;166;37m\]\w\[\e[0m\] ✦ '
+elif [ -n "${ZSH_VERSION:-}" ]; then
+    PROMPT=$'%{\e[38;2;'"$_lumos_c"$'m%}ϟ %n%{\e[0m%} %{\e[38;2;211;166;37m%}%~%{\e[0m%} ✦ '
+fi
+unset _lumos_c
+
+# Les sortilèges qui agissent sur le terminal lui-même (les autres sont dans /usr/local/bin)
+portus() { cd "${1:-$HOME}" || return; }
+obliviate() {
+    history -c 2>/dev/null
+    clear
+    printf '\e[38;2;211;166;37m✦ Oubliettes ! Tu ne te souviens de rien.\e[0m\n'
+}
+
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+
+# Accueil : une fois par fenêtre de terminal, pas dans les shells imbriqués
+if [ -z "${LUMOS_ACCUEIL:-}" ] && command -v fastfetch >/dev/null 2>&1; then
+    fastfetch -c /usr/share/lumos/fastfetch.jsonc
+    printf 'Tape \e[38;2;211;166;37mgrimoire\e[0m pour la liste des sortilèges.\n\n'
+fi
+export LUMOS_ACCUEIL=1

@@ -1,0 +1,56 @@
+name: ISO
+
+# Construit l'ISO à la demande (onglet Actions › ISO › Run workflow) et à chaque
+# étiquette de version (v0.1, v0.2…), auquel cas l'ISO est jointe à la version.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  iso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Libérer de la place sur le disque
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Construire l'ISO dans un conteneur Arch
+        run: |
+          docker run --rm --privileged -v "$PWD:/depot" -w /depot archlinux:latest bash -c '
+            pacman -Syu --noconfirm --needed archiso librsvg ttf-liberation &&
+            bash build.sh'
+          sudo chown -R "$USER" out
+          ls -lh out
+
+      - name: Garder l'ISO comme artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumos-os-iso
+          path: out/
+          compression-level: 0
+          retention-days: 14
+
+      - name: Joindre l'ISO à la version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd out
+          for iso in *.iso; do
+            # GitHub refuse les fichiers de 2 Gio et plus : on découpe au besoin.
+            if [ "$(stat -c %s "$iso")" -ge 2147483648 ]; then
+              echo "::warning::ISO de plus de 2 Gio, découpée en morceaux (à recoller avec cat)."
+              split -b 1900M -d "$iso" "$iso.partie-"
+              rm "$iso"
+            fi
+          done
+          gh release create "$GITHUB_REF_NAME" ./* --repo "$GITHUB_REPOSITORY" \
+            --title "Lumos OS $GITHUB_REF_NAME" --generate-notes

@@ -1,0 +1,2 @@
+# Session live : le compte « sorcier » (groupe wheel) administre sans mot de passe.
+%wheel ALL=(ALL:ALL) NOPASSWD: ALL

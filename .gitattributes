@@ -1,0 +1,3 @@
+# Tout est lu par des outils Linux : fins de ligne LF, même depuis Windows.
+* text=auto eol=lf
+*.png binary

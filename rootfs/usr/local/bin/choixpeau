@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# choixpeau — la cérémonie de la Répartition : trois questions, puis une maison.
+#   choixpeau            pose les questions
+#   choixpeau --choisir  laisse choisir directement sa maison
+set -u
+
+maisons=(gryffondor serpentard serdaigle poufsouffle)
+declare -A score=([gryffondor]=0 [serpentard]=0 [serdaigle]=0 [poufsouffle]=0)
+
+fenetre=0
+[[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]] && command -v kdialog >/dev/null && fenetre=1
+
+# demander "question" "maison|réponse"… : écrit la maison choisie, échoue si l'on annule
+demander() {
+    local question="$1" paire i=0 saisie
+    shift
+    if (( fenetre )); then
+        local options=()
+        for paire in "$@"; do options+=("${paire%%|*}" "${paire#*|}"); done
+        kdialog --title "Le Choixpeau" --menu "$question" "${options[@]}"
+    else
+        printf '\n\e[38;2;211;166;37m%s\e[0m\n' "$question" >&2
+        for paire in "$@"; do printf '  %d. %s\n' "$((++i))" "${paire#*|}" >&2; done
+        read -rp "> " saisie || return 1
+        [[ $saisie =~ ^[1-9]$ ]] && (( saisie <= $# )) || return 1
+        paire="${!saisie}"
+        echo "${paire%%|*}"
+    fi
+}
+
+annoncer() {
+    if (( fenetre )); then kdialog --title "Le Choixpeau" --msgbox "$1"; else printf '\n%s\n' "$1"; fi
+}
+
+if [[ ${1:-} == --choisir ]]; then
+    choix="$(demander "Dans quelle maison veux-tu aller ?" \
+        "gryffondor|Gryffondor" "serpentard|Serpentard" "serdaigle|Serdaigle" "poufsouffle|Poufsouffle")" || exit 1
+    exec maison "$choix"
+fi
+
+annoncer "Hmm… voyons voir ce qu’il y a dans cette tête. Trois questions, et je saurai où te placer."
+
+reponse="$(demander "Au fond d’un vieux grenier, tu trouves…" \
+    "serdaigle|Un grimoire aux marges couvertes d’annotations" \
+    "gryffondor|Une épée rouillée qui semble t’attendre" \
+    "poufsouffle|Une boîte de recettes écrites à la main" \
+    "serpentard|Un coffret fermé par un mécanisme ingénieux")" || exit 1
+(( score[$reponse]++ ))
+
+reponse="$(demander "Ton terminal affiche une erreur incompréhensible. Tu…" \
+    "gryffondor|relances la commande avec sudo, on verra bien" \
+    "serpentard|trouves un contournement que personne n’avait vu" \
+    "serdaigle|lis le manuel jusqu’à comprendre pourquoi" \
+    "poufsouffle|demandes de l’aide, puis notes la solution pour les suivants")" || exit 1
+(( score[$reponse]++ ))
+
+reponse="$(demander "Ce que tu aimerais qu’on retienne de toi :" \
+    "poufsouffle|Ta loyauté" \
+    "serdaigle|Ton savoir" \
+    "gryffondor|Ton courage" \
+    "serpentard|Ton ambition")" || exit 1
+(( score[$reponse]++ ))
+
+# La maison la mieux placée l'emporte ; en cas d'égalité, le Choixpeau tranche au hasard.
+meilleur=0
+for m in "${maisons[@]}"; do (( score[$m] > meilleur )) && meilleur=${score[$m]}; done
+candidates=()
+for m in "${maisons[@]}"; do (( score[$m] == meilleur )) && candidates+=("$m"); done
+elue="${candidates[RANDOM % ${#candidates[@]}]}"
+
+annoncer "Difficile… très difficile. Mais je sais : ${elue^^} !"
+exec maison "$elue"

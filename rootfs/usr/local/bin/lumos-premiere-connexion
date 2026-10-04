@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Première ouverture de session : le Choixpeau attribue une maison, ce qui pose le
+# thème. Lancé par /etc/xdg/autostart ; ne fait plus rien une fois la maison connue.
+set -u
+
+[[ -e ${XDG_CONFIG_HOME:-$HOME/.config}/lumos/maison ]] && exit 0
+
+# Attendre que le bureau Plasma réponde avant de changer couleurs et fond d'écran
+for _ in {1..60}; do
+    busctl --user --no-pager status org.kde.plasmashell &>/dev/null && break
+    sleep 0.5
+done
+sleep 2
+
+choixpeau || maison gryffondor

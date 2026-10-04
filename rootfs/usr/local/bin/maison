@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# maison — affiche ou change ta maison : couleurs du bureau, fond d'écran, écran
+# de verrouillage et profil du terminal.
+set -u
+
+maisons=(gryffondor serpentard serdaigle poufsouffle)
+etat="${XDG_CONFIG_HOME:-$HOME/.config}/lumos"
+
+if (( $# == 0 )); then
+    if [[ -r $etat/maison ]]; then
+        m="$(<"$etat/maison")"
+        echo "Tu es à ${m^}."
+    else
+        echo "Tu n’as pas encore été réparti. Lance « choixpeau »."
+    fi
+    echo "Usage : maison <${maisons[*]}>"
+    exit 0
+fi
+
+m="${1,,}"
+if [[ ! " ${maisons[*]} " == *" $m "* ]]; then
+    echo "Maison inconnue : $1 (${maisons[*]})" >&2
+    exit 2
+fi
+
+mkdir -p "$etat"
+printf '%s\n' "$m" > "$etat/maison"
+
+if [[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]] && command -v plasma-apply-colorscheme >/dev/null; then
+    fond="/usr/share/wallpapers/Lumos/$m.png"
+    plasma-apply-colorscheme "Lumos${m^}" >/dev/null
+    if [[ -r $fond ]]; then
+        plasma-apply-wallpaperimage "$fond" >/dev/null
+        kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
+            --group org.kde.image --group General --key Image "file://$fond"
+    fi
+    kwriteconfig6 --file konsolerc --group 'Desktop Entry' --key DefaultProfile Lumos.profile
+fi
+
+printf '\e[38;2;211;166;37m✦ Bienvenue à %s.\e[0m\n' "${m^}"

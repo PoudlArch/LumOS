@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# sortilege — toutes les incantations de Lumos OS.
+# Chaque sortilège est un lien vers ce script : « accio firefox » revient à
+# « sortilege accio firefox ». La liste ci-dessous fait foi (liens et grimoire).
+set -u
+
+GRIMOIRE='accio|<paquet…>|installe un paquet
+evanesco|<paquet…>|désinstalle un paquet et ses dépendances devenues inutiles
+reparo||met tout le système à jour
+revelio|<mot>|cherche un paquet dans les dépôts
+alohomora|<commande>|exécute une commande en administrateur
+lumos||passe au thème clair (parchemin)
+nox||revient au thème sombre de ta maison
+geminio|<source> <copie>|duplique un fichier ou un dossier
+wingardium-leviosa|<source> <destination>|déplace un fichier ou un dossier
+reducto|<fichier ou dossier>|compresse en archive .tar.zst
+engorgio|<archive>|décompresse une archive
+stupefix|<processus>|fige un processus
+enervatum|<processus>|réveille un processus figé
+finite-incantatem|<processus>|demande à un processus de s’arrêter
+avada-kedavra|<processus>|tue un processus sans sommation
+hominum-revelio||montre qui est connecté à la machine
+mefait-accompli||éteint l’ordinateur
+grimoire||affiche cette liste'
+
+or=$'\e[38;2;211;166;37m'
+fin=$'\e[0m'
+dire() { printf '%s✦ %s%s\n' "$or" "$*" "$fin"; }
+
+sort="$(basename "$0")"
+if [[ $sort == sortilege ]]; then
+    sort="${1:-grimoire}"
+    (( $# )) && shift
+fi
+
+if [[ $sort == --liste ]]; then
+    cut -d'|' -f1 <<<"$GRIMOIRE"
+    exit 0
+fi
+
+# Refuse l'incantation s'il manque des arguments
+besoin() {
+    (( $1 >= $2 )) && return
+    local arguments
+    arguments="$(grep "^$sort|" <<<"$GRIMOIRE" | cut -d'|' -f2)"
+    echo "Usage : $sort $arguments" >&2
+    exit 2
+}
+
+# Envoie un signal à un processus désigné par son numéro ou par son nom
+signal() {
+    if [[ $2 =~ ^[0-9]+$ ]]; then kill "-$1" "$2"; else pkill "-$1" -x "$2"; fi
+}
+
+maison_actuelle() {
+    cat "${XDG_CONFIG_HOME:-$HOME/.config}/lumos/maison" 2>/dev/null || echo gryffondor
+}
+
+sous_plasma() {
+    [[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]] && command -v plasma-apply-colorscheme >/dev/null && return
+    echo "Ce sortilège n’agit que dans une session Plasma." >&2
+    exit 1
+}
+
+case "$sort" in
+    accio)
+        besoin $# 1; dire "Accio $* !"
+        exec sudo pacman -S --needed "$@" ;;
+    evanesco)
+        besoin $# 1; dire "Evanesco !"
+        exec sudo pacman -Rns "$@" ;;
+    reparo)
+        dire "Reparo !"
+        exec sudo pacman -Syu ;;
+    revelio)
+        besoin $# 1
+        exec pacman -Ss "$@" ;;
+    alohomora)
+        besoin $# 1
+        exec sudo "$@" ;;
+    lumos)
+        sous_plasma; dire "Lumos !"
+        plasma-apply-colorscheme LumosParchemin >/dev/null ;;
+    nox)
+        sous_plasma; dire "Nox."
+        m="$(maison_actuelle)"
+        plasma-apply-colorscheme "Lumos${m^}" >/dev/null ;;
+    geminio)
+        besoin $# 2
+        cp -a -- "$1" "$2" && dire "Geminio : $2" ;;
+    wingardium-leviosa)
+        besoin $# 2
+        mv -- "$1" "$2" && dire "Wingardium Leviosa : $2" ;;
+    reducto)
+        besoin $# 1
+        cible="${1%/}"
+        tar --zstd -cf "$cible.tar.zst" -- "$cible" && dire "Reducto : $cible.tar.zst" ;;
+    engorgio)
+        besoin $# 1
+        bsdtar -xf "$1" && dire "Engorgio !" ;;
+    stupefix)
+        besoin $# 1
+        signal STOP "$1" && dire "Stupéfix ! $1 ne bouge plus." ;;
+    enervatum)
+        besoin $# 1
+        signal CONT "$1" && dire "Enervatum : $1 reprend ses esprits." ;;
+    finite-incantatem)
+        besoin $# 1
+        signal TERM "$1" && dire "Finite Incantatem." ;;
+    avada-kedavra)
+        besoin $# 1
+        signal KILL "$1" && dire "Avada Kedavra. $1 n’est plus." ;;
+    hominum-revelio)
+        exec w ;;
+    mefait-accompli)
+        dire "Méfait accompli."
+        exec systemctl poweroff ;;
+    grimoire|--help|-h)
+        dire "Le grimoire de Lumos OS"
+        {
+            cat <<<"$GRIMOIRE"
+            echo 'portus|[dossier]|te transporte dans un dossier'
+            echo 'obliviate||efface l’écran et l’historique du terminal'
+            echo 'maison|[nom]|affiche ou change ta maison'
+            echo 'choixpeau||relance la cérémonie de la Répartition'
+        } | while IFS='|' read -r nom arguments effet; do
+            printf '  %s%-20s%s %-26s %s\n' "$or" "$nom" "$fin" "$arguments" "$effet"
+        done ;;
+    *)
+        echo "Sortilège inconnu : $sort (essaie « grimoire »)" >&2
+        exit 2 ;;
+esac
