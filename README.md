@@ -56,6 +56,10 @@ sudo ./build.sh
 
 L'ISO arrive dans `out/`. `build.sh` installe le trousseau de clés BlackArch sur la machine de construction et ajoute le dépôt au système (pour que `pacstrap` puisse vérifier les paquets signés). Pour l'essayer : VirtualBox ou VMware (4 Go de mémoire), ou une clé USB (Ventoy, Rufus, `dd`).
 
+## Installer LumOS sur un disque
+
+En mode live, rien n'est sauvegardé (tout tourne en mémoire). Pour un système permanent, l'installateur **`lumos-installer`** (icône « Installer LumOS » sur le bureau, ou `sudo lumos-installer` en console) **clone le système live sur le disque** : tout le thème — maisons, Choixpeau, outils, menu — est donc conservé. Il règle ensuite l'amorçage (GRUB, UEFI ou BIOS), crée un utilisateur et retire ce qui est propre au live. L'installateur **efface le disque choisi** : à réserver à une machine ou une VM de test. Une fois installé, le Choixpeau ne te répartit **qu'une seule fois** et ta maison est gardée.
+
 ## Mettre le thème sur un Arch déjà installé
 
 Sur un Arch Linux avec KDE Plasma, sans passer par l'ISO (applique le thème, pas les outils de sécurité) :
@@ -84,7 +88,7 @@ Changer une couleur : modifier `themes/maisons.conf`, puis `python tools/dessine
 
 Version de départ : l'ISO n'a pas encore été construite ni démarrée ; la première construction dira ce qu'il reste à ajuster (surtout la liste BlackArch et la taille de l'ISO).
 
-À venir : installateur graphique (Calamares) pour que le système installé garde le thème, menu des outils rangé par « matière » (Défense, Divination, Métamorphose…), écran de connexion et animation de démarrage aux couleurs des maisons.
+À venir : écran de connexion (SDDM) et animation de démarrage aux couleurs des maisons, sons, jeu d'icônes, dépôt de paquets. Faits : installateur sur disque (`lumos-installer`) et menu des outils rangé par matière.
 
 ## Licence
 

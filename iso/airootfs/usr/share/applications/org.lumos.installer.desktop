@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.4
+Name=Installer LumOS sur le disque
+Name[en]=Install LumOS
+Comment=Installer LumOS de façon permanente sur un disque
+Exec=konsole -e sudo lumos-installer
+Icon=drive-harddisk
+Terminal=false
+Categories=System;Settings;
+Keywords=installer;installation;disque;

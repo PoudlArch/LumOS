@@ -3,10 +3,10 @@
 
   Le bureau s'ouvre tout seul sur le compte « sorcier » (sans mot de passe).
   Depuis cette console :
-    grimoire       la liste des sortilèges
-    accio <outil>  installer un outil (dépôt BlackArch en place)
-    archinstall    installer Arch Linux sur le disque
-    nmtui          régler le réseau
+    grimoire          la liste des sortilèges
+    accio <outil>     installer un outil (dépôt BlackArch en place)
+    sudo lumos-installer  installer LumOS sur le disque (garde le thème)
+    nmtui             régler le réseau
 
   ⚡ Défense contre les Forces du Mal : n'emploie ces outils que sur des
      systèmes qui t'appartiennent ou pour lesquels tu as une autorisation

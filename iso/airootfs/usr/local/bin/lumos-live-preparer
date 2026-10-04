@@ -9,8 +9,15 @@ useradd -m -c "Sorcier" -G wheel -s /usr/bin/bash sorcier
 passwd -d sorcier >/dev/null
 
 perso=/home/sorcier
-mkdir -p "$perso/.config"
+mkdir -p "$perso/.config" "$perso/Desktop"
 # Clavier français dans Plasma
 printf '[Layout]\nLayoutList=fr\nUse=true\n' > "$perso/.config/kxkbrc"
 printf '\n[ -r /usr/share/lumos/shellrc ] && . /usr/share/lumos/shellrc\n' >> "$perso/.bashrc"
+# Raccourci « Installer LumOS » sur le bureau de la session live
+if [[ -r /usr/share/applications/org.lumos.installer.desktop ]]; then
+    cp /usr/share/applications/org.lumos.installer.desktop "$perso/Desktop/"
+    chmod +x "$perso/Desktop/org.lumos.installer.desktop"
+fi
+# Plasma 6 : autoriser l'exécution des raccourcis déposés sur le bureau
+printf '[General]\nShowDeletePopup=false\n' > "$perso/.config/kdesktoprc" 2>/dev/null || true
 chown -R sorcier:sorcier "$perso"

@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+# lumos-installer — installe LumOS sur un disque, en clonant le système live.
+#
+# Principe (comme EndeavourOS) : on recopie le système live tel quel sur le disque,
+# donc le thème (maisons, Choixpeau, outils, menu) est conservé. On règle ensuite
+# l'amorçage (GRUB), on crée un utilisateur et on retire ce qui est propre au live.
+#
+# Guidé, en terminal, HORS-LIGNE. À lancer en root : sudo lumos-installer
+set -uo pipefail
+
+or=$'\e[38;2;211;166;37m'; rouge=$'\e[31m'; vert=$'\e[32m'; gras=$'\e[1m'; fin=$'\e[0m'
+titre() { printf '\n%s%s✦ %s%s\n' "$gras" "$or" "$*" "$fin"; }
+info()  { printf '  %s\n' "$*"; }
+err()   { printf '%s✗ %s%s\n' "$rouge" "$*" "$fin" >&2; }
+pause() { read -rp $'\nAppuie sur Entrée pour continuer…' _; }
+
+CIBLE=/mnt
+nettoyer() { mountpoint -q "$CIBLE" && umount -R "$CIBLE" 2>/dev/null; }
+trap nettoyer EXIT
+
+(( EUID == 0 )) || { err "À lancer en root : sudo lumos-installer"; exit 1; }
+
+clear
+cat <<BANNIERE
+${or}${gras}
+        ✦  Installation de LumOS  ✦
+${fin}
+Cet assistant installe LumOS sur un disque de cet ordinateur.
+Le système live (thème, maisons, Choixpeau, outils) sera recopié tel quel.
+
+${rouge}${gras}ATTENTION : le disque choisi sera ENTIÈREMENT EFFACÉ.${fin}
+À utiliser sur une machine ou une machine virtuelle de test.
+BANNIERE
+
+# --- Mode d'amorçage ---
+if [[ -d /sys/firmware/efi/efivars ]]; then uefi=1; mode="UEFI"; else uefi=0; mode="BIOS"; fi
+titre "Mode d'amorçage détecté : $mode"
+
+# --- Choix du disque ---
+titre "Disques disponibles"
+lsblk -dpno NAME,SIZE,MODEL -e 7,11 | grep -v '^$' | nl -w2 -s'. '
+mapfile -t disques < <(lsblk -dpno NAME -e 7,11 | grep -v '^$')
+(( ${#disques[@]} )) || { err "Aucun disque trouvé."; exit 1; }
+
+echo
+read -rp "Numéro du disque à utiliser (ou 'q' pour annuler) : " n
+[[ $n == q ]] && { echo "Annulé."; exit 0; }
+[[ $n =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#disques[@]} )) || { err "Choix invalide."; exit 1; }
+disque="${disques[$((n-1))]}"
+
+# nom des partitions : nvme0n1 -> nvme0n1p1 ; sda -> sda1
+if [[ $disque =~ [0-9]$ ]]; then p="${disque}p"; else p="$disque"; fi
+
+titre "Disque choisi : $disque"
+lsblk -pno NAME,SIZE,FSTYPE,MOUNTPOINTS "$disque"
+echo
+printf '%s%sTout le contenu de %s va être DÉFINITIVEMENT EFFACÉ.%s\n' "$rouge" "$gras" "$disque" "$fin"
+read -rp "Pour confirmer, tape en majuscules le mot EFFACER : " confirm
+[[ $confirm == EFFACER ]] || { echo "Non confirmé. Rien n'a été touché."; exit 0; }
+
+# --- Réglages du système installé ---
+titre "Réglages"
+read -rp "Nom de la machine [lumos] : " hostname; hostname="${hostname:-lumos}"
+while :; do
+    read -rp "Nom d'utilisateur (minuscules) : " utilisateur
+    [[ $utilisateur =~ ^[a-z_][a-z0-9_-]*$ ]] && break
+    err "Nom invalide (lettres minuscules, chiffres, - et _)."
+done
+while :; do
+    read -rsp "Mot de passe pour $utilisateur : " mdp; echo
+    read -rsp "Confirme le mot de passe : " mdp2; echo
+    [[ -n $mdp && $mdp == "$mdp2" ]] && break
+    err "Les mots de passe sont vides ou différents."
+done
+
+# ====================================================================
+titre "Partitionnement de $disque"
+umount -R "${disque}"* 2>/dev/null || true
+swapoff -a 2>/dev/null || true
+wipefs -af "$disque" >/dev/null
+sgdisk -Z "$disque" >/dev/null
+if (( uefi )); then
+    sgdisk -n1:0:+512M -t1:ef00 -c1:EFI "$disque" >/dev/null
+    sgdisk -n2:0:0     -t2:8300 -c2:LumOS "$disque" >/dev/null
+    esp="${p}1"; racine="${p}2"
+else
+    sgdisk -n1:0:+1M   -t1:ef02 -c1:BIOS "$disque" >/dev/null
+    sgdisk -n2:0:0     -t2:8300 -c2:LumOS "$disque" >/dev/null
+    racine="${p}2"
+fi
+partprobe "$disque" >/dev/null 2>&1 || true
+sleep 2
+
+titre "Formatage"
+mkfs.ext4 -F -L LumOS "$racine" >/dev/null
+(( uefi )) && mkfs.fat -F32 -n EFI "$esp" >/dev/null
+
+titre "Montage"
+mount "$racine" "$CIBLE"
+if (( uefi )); then
+    mkdir -p "$CIBLE/boot/efi"
+    mount "$esp" "$CIBLE/boot/efi"
+fi
+
+titre "Copie du système (quelques minutes)…"
+rsync -aHAXx --info=progress2 / "$CIBLE/" \
+    --exclude=/dev/'*' --exclude=/proc/'*' --exclude=/sys/'*' --exclude=/tmp/'*' \
+    --exclude=/run/'*' --exclude=/mnt/'*' --exclude=/media/'*' --exclude='/lost+found' \
+    --exclude=/home/sorcier --exclude=/root/.cache \
+    --exclude=/etc/fstab --exclude=/etc/machine-id \
+    --exclude=/etc/sddm.conf.d/10-lumos-live.conf \
+    --exclude=/etc/sudoers.d/10-lumos-live \
+    --exclude='/etc/systemd/system/lumos-live.service' \
+    --exclude='/etc/systemd/system/multi-user.target.wants/lumos-live.service' \
+    --exclude='/boot/efi/*'
+
+titre "Table des systèmes de fichiers (fstab)"
+genfstab -U "$CIBLE" >> "$CIBLE/etc/fstab"
+
+# --- Configuration dans le nouveau système ---
+titre "Configuration du système installé"
+# arch-chroot ne transmet pas l'environnement : on passe les réglages par un
+# fichier temporaire (échappement sûr, y compris pour le mot de passe).
+{
+    printf 'LUMOS_HOST=%q\n'    "$hostname"
+    printf 'LUMOS_USER=%q\n'    "$utilisateur"
+    printf 'LUMOS_MDP=%q\n'     "$mdp"
+    printf 'LUMOS_UEFI=%q\n'    "$uefi"
+    printf 'LUMOS_DISQUE=%q\n'  "$disque"
+} > "$CIBLE/root/.lumos-install.env"
+chmod 600 "$CIBLE/root/.lumos-install.env"
+
+arch-chroot "$CIBLE" /bin/bash <<'CHROOT'
+set -uo pipefail
+source /root/.lumos-install.env
+
+# Identité
+echo "$LUMOS_HOST" > /etc/hostname
+cat > /etc/hosts <<EOF
+127.0.0.1   localhost
+::1         localhost
+127.0.1.1   $LUMOS_HOST.localdomain $LUMOS_HOST
+EOF
+systemd-machine-id-setup >/dev/null
+locale-gen >/dev/null 2>&1
+
+# Amorçage standard (on retire les crochets archiso et on régénère l'initramfs)
+rm -f /etc/mkinitcpio.conf.d/archiso.conf
+cat > /etc/mkinitcpio.conf <<'EOF'
+MODULES=()
+BINARIES=()
+FILES=()
+HOOKS=(base udev autodetect microcode modconf kms keyboard keymap consolefont block filesystems fsck)
+EOF
+pacman -R --noconfirm mkinitcpio-archiso >/dev/null 2>&1 || true
+mkinitcpio -P
+
+# GRUB
+if [[ $LUMOS_UEFI == 1 ]]; then
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=LumOS --recheck
+else
+    grub-install --target=i386-pc --recheck "$LUMOS_DISQUE"
+fi
+sed -i 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="LumOS"/' /etc/default/grub 2>/dev/null || true
+grub-mkconfig -o /boot/grub/grub.cfg
+
+# Retrait des éléments propres à la session live
+rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
+rm -f /etc/systemd/system/multi-user.target.wants/{choose-mirror,pacman-init,cloud-init,cloud-config,cloud-final,cloud-init-local,cloud-init-main,cloud-init-network,livecd-talk}.service
+rm -f /etc/systemd/system/{choose-mirror,pacman-init,livecd-talk,livecd-alsa-unmuter}.service
+rm -f /etc/systemd/system/sound.target.wants/livecd-alsa-unmuter.service
+userdel sorcier 2>/dev/null || true
+rm -f /root/.automated_script.sh /root/.zlogin
+
+# Utilisateur et droits d'administration
+useradd -m -G wheel -s /usr/bin/bash "$LUMOS_USER"
+printf '%s:%s\n' "$LUMOS_USER" "$LUMOS_MDP" | chpasswd
+passwd -l root >/dev/null
+echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel
+chmod 440 /etc/sudoers.d/10-wheel
+
+# L'écran de connexion graphique au démarrage
+systemctl enable sddm NetworkManager >/dev/null 2>&1
+
+rm -f /root/.lumos-install.env
+CHROOT
+rc=$?
+
+if (( rc != 0 )); then
+    err "La configuration s'est terminée avec des avertissements (code $rc)."
+    err "Regarde les messages ci-dessus avant de redémarrer."
+fi
+
+nettoyer
+trap - EXIT
+titre "Installation terminée ✓"
+cat <<FIN
+LumOS est installé sur $disque.
+
+  • Retire l'ISO (dans VirtualBox : Périphériques › Lecteurs optiques › Retirer
+    le disque), puis redémarre.
+  • Au démarrage : écran de connexion → entre « $utilisateur » et ton mot de passe.
+  • Le Choixpeau te répartit UNE fois, et ta maison est gardée pour de bon.
+FIN
+read -rp $'\nRedémarrer maintenant ? [o/N] ' rep
+[[ ${rep,,} == o ]] && systemctl reboot
