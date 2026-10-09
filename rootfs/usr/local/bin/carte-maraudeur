@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# carte-maraudeur — « Je jure solennellement que mes intentions sont mauvaises. »
+# Audit réseau de LumOS en 5 passes nmap : révèle les présences du réseau,
+# leurs ports, versions, OS et vulnérabilités connues. (Divination · Reconnaissance)
+#
+# À lancer en administrateur (ARP/SYN/OS/UDP = raw sockets) :
+#   sudo carte-maraudeur
+#   sudo carte-maraudeur -n 192.168.1.0/24 -i 192.168.1.100,192.168.1.194 -e 192.168.1.254
+#   sudo carte-maraudeur -F        # tous les ports TCP (-p-), plus long
+#
+# Résultats dans ~/audits-reseau/<date>/  (.nmap lisible / .xml réimportable / .gnmap)
+
+set -uo pipefail
+
+NETWORK="192.168.1.0/24"
+IOT=""; EXCLUDE=""; FULLPORTS=0; SKIPUDP=0
+OUTROOT="$HOME/audits-reseau"
+
+or=$'\e[38;2;211;166;37m'; rouge=$'\e[31m'; fin=$'\e[0m'
+dire()   { printf '%s✦ %s%s\n' "$or" "$*" "$fin"; }
+erreur() { printf '%s✗ %s%s\n' "$rouge" "$*" "$fin" >&2; exit 1; }
+
+usage() {
+  cat <<EOF
+Carte du Maraudeur — audit réseau LumOS
+Usage : carte-maraudeur [-n reseau] [-i ip1,ip2,...] [-e ip] [-F] [-U] [-o dossier]
+  -n  plage à auditer          (défaut: $NETWORK)
+  -i  cibles IoT (CSV)         -> passes CVE + scripts ciblés
+  -e  IP à épargner (ex: box)
+  -F  tous les ports TCP (-p-) (plus long)
+  -U  sauter le balayage UDP
+  -o  racine des résultats     (défaut: $OUTROOT)
+EOF
+  exit 1
+}
+
+while getopts "n:i:e:FUo:h" opt; do
+  case "$opt" in
+    n) NETWORK="$OPTARG" ;;
+    i) IOT="$OPTARG" ;;
+    e) EXCLUDE="$OPTARG" ;;
+    F) FULLPORTS=1 ;;
+    U) SKIPUDP=1 ;;
+    o) OUTROOT="$OPTARG" ;;
+    *) usage ;;
+  esac
+done
+
+command -v nmap >/dev/null 2>&1 || erreur "nmap introuvable (accio nmap)."
+[ "$(id -u)" -ne 0 ] && dire "Pas en administrateur : certaines passes peuvent échouer -> relance avec « sudo »."
+
+STAMP="$(date +%Y-%m-%d_%H%M%S)"
+OUTDIR="$OUTROOT/$STAMP"
+mkdir -p "$OUTDIR" || erreur "Impossible de créer $OUTDIR"
+dire "Carte du Maraudeur déployée sur $NETWORK"
+dire "Parchemin : $OUTDIR"
+
+EXCL=(); [ -n "$EXCLUDE" ] && EXCL=(--exclude "$EXCLUDE")
+if [ "$FULLPORTS" -eq 1 ]; then PORTS=(-p-); else PORTS=(--top-ports 1000); fi
+
+passe() {
+  local label="$1"; shift
+  printf '\n%s▸ %s%s\n' "$or" "$label" "$fin"
+  local t0 t1; t0=$(date +%s)
+  nmap "$@" || dire "nmap a retourné un code non nul (on continue)"
+  t1=$(date +%s); dire "terminé en $((t1 - t0))s"
+}
+
+passe "Passe 1/5 · Révélation des présences (découverte)" \
+  -sn -PR "$NETWORK" "${EXCL[@]}" -oA "$OUTDIR/01_discovery"
+
+grep 'Status: Up' "$OUTDIR/01_discovery.gnmap" 2>/dev/null \
+  | grep -Eo 'Host: [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' \
+  | awk '{print $2}' | sort -u > "$OUTDIR/hosts.txt" || true
+NLIVE=$(grep -c . "$OUTDIR/hosts.txt" 2>/dev/null || echo 0)
+dire "$NLIVE présence(s) sur la carte"
+[ "$NLIVE" -eq 0 ] && { dire "Personne en vue. Méfait accompli."; exit 0; }
+
+if [ -n "$IOT" ]; then
+  echo "$IOT" | tr ',' '\n' | sed '/^$/d' > "$OUTDIR/cve_targets.txt"
+else
+  cp "$OUTDIR/hosts.txt" "$OUTDIR/cve_targets.txt"
+fi
+
+passe "Passe 2/5 · Identités (ports/versions/OS)" \
+  -sS -sV --version-all -O -T4 --open "${PORTS[@]}" -iL "$OUTDIR/hosts.txt" -oA "$OUTDIR/02_tcp"
+
+if [ "$SKIPUDP" -eq 0 ]; then
+  passe "Passe 3/5 · Passages secrets (UDP top 30)" \
+    -sU --top-ports 30 -T4 --open "$NETWORK" "${EXCL[@]}" -oA "$OUTDIR/03_udp"
+else
+  printf '\n%s▸ Passe 3/5 · UDP ignorée (-U)%s\n' "$or" "$fin"
+fi
+
+passe "Passe 4/5 · Mauvais sorts connus (CVE / vulners)" \
+  -sV --script vulners --script-args mincvss=5.0 -T3 "${PORTS[@]}" -iL "$OUTDIR/cve_targets.txt" -oA "$OUTDIR/04_cve"
+
+passe "Passe 5/5 · Examen rapproché (scripts ciblés)" \
+  -sV -p 23,80,443,554,8000,8080,8443,37777 \
+  --script "banner,telnet-encryption,http-title,http-headers,ssl-cert,rtsp-methods" \
+  -T3 -iL "$OUTDIR/cve_targets.txt" -oA "$OUTDIR/05_services"
+
+printf '\n%s✦ Méfait accompli.%s\n' "$or" "$fin"
+dire "Parchemin : $OUTDIR"
+ls -1 "$OUTDIR"/*.nmap 2>/dev/null | sed 's/^/   - /'
+dire "Les .xml sont réimportables dans OpenVAS/Metasploit (db_import)."
+printf '\n%s▸ Ports ouverts repérés :%s\n' "$or" "$fin"
+grep -h 'Ports:' "$OUTDIR"/0*.gnmap 2>/dev/null | head -50
