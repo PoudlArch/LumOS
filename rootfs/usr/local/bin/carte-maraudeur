@@ -1,25 +1,38 @@
 #!/usr/bin/env bash
 # carte-maraudeur — « Je jure solennellement que mes intentions sont mauvaises. »
-# Audit réseau de LumOS en 5 passes nmap : révèle les présences du réseau,
-# leurs ports, versions, OS et vulnérabilités connues. (Divination · Reconnaissance)
+# Audit réseau de LumOS en 5 passes nmap + synthèse auto, bannière & spinner animés.
+# Révèle les présences du réseau, leurs ports, versions, OS et vulnérabilités. (Divination)
 #
 # À lancer en administrateur (ARP/SYN/OS/UDP = raw sockets) :
 #   sudo carte-maraudeur
 #   sudo carte-maraudeur -n 192.168.1.0/24 -i 192.168.1.100,192.168.1.194 -e 192.168.1.254
 #   sudo carte-maraudeur -F        # tous les ports TCP (-p-), plus long
 #
-# Résultats dans ~/audits-reseau/<date>/  (.nmap lisible / .xml réimportable / .gnmap)
+# Résultats dans ~/audits-reseau/<date>/  (00_SYNTHESE.md + .nmap/.xml/.gnmap)
 
 set -uo pipefail
 
 NETWORK="192.168.1.0/24"
 IOT=""; EXCLUDE=""; FULLPORTS=0; SKIPUDP=0
 OUTROOT="$HOME/audits-reseau"
-VULNERS_NSE="/usr/share/nmap/scripts/vulners.nse"   # script CVE embarqué dans LumOS
 
-or=$'\e[38;2;211;166;37m'; rouge=$'\e[31m'; fin=$'\e[0m'
-dire()   { printf '%s✦ %s%s\n' "$or" "$*" "$fin"; }
-erreur() { printf '%s✗ %s%s\n' "$rouge" "$*" "$fin" >&2; exit 1; }
+# --- Palette (or de LumOS) & helpers ----------------------------------------
+GOLD=$'\e[38;2;211;166;37m'; CYAN=$'\e[38;2;88;166;255m'
+GRN=$'\e[32m'; YEL=$'\e[33m'; RED=$'\e[31m'; DIM=$'\e[2m'; B=$'\e[1m'; FIN=$'\e[0m'
+dire()   { printf '%s✦ %s%s\n' "$GOLD" "$*" "$FIN"; }
+erreur() { printf '%s✗ %s%s\n' "$RED" "$*" "$FIN" >&2; exit 1; }
+FR=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏); NF=${#FR[@]}
+
+banniere() {
+  printf '%s' "$GOLD"
+  cat <<'ART'
+    ╔══════════════════════════════════════════════════╗
+    ║    ✦  C A R T E   D U   M A R A U D E U R  ✦       ║
+    ║        audit réseau · LumOS · Divination           ║
+    ╚══════════════════════════════════════════════════╝
+ART
+  printf '%s      « Je jure solennellement que mes intentions sont mauvaises. »%s\n' "$DIM" "$FIN"
+}
 
 usage() {
   cat <<EOF
@@ -37,34 +50,129 @@ EOF
 
 while getopts "n:i:e:FUo:h" opt; do
   case "$opt" in
-    n) NETWORK="$OPTARG" ;;
-    i) IOT="$OPTARG" ;;
-    e) EXCLUDE="$OPTARG" ;;
-    F) FULLPORTS=1 ;;
-    U) SKIPUDP=1 ;;
-    o) OUTROOT="$OPTARG" ;;
-    *) usage ;;
+    n) NETWORK="$OPTARG" ;; i) IOT="$OPTARG" ;; e) EXCLUDE="$OPTARG" ;;
+    F) FULLPORTS=1 ;; U) SKIPUDP=1 ;; o) OUTROOT="$OPTARG" ;; *) usage ;;
   esac
 done
 
 command -v nmap >/dev/null 2>&1 || erreur "nmap introuvable (accio nmap)."
+
+clear 2>/dev/null || true
+banniere
 [ "$(id -u)" -ne 0 ] && dire "Pas en administrateur : certaines passes peuvent échouer -> relance avec « sudo »."
 
 STAMP="$(date +%Y-%m-%d_%H%M%S)"
 OUTDIR="$OUTROOT/$STAMP"
 mkdir -p "$OUTDIR" || erreur "Impossible de créer $OUTDIR"
-dire "Carte du Maraudeur déployée sur $NETWORK"
-dire "Parchemin : $OUTDIR"
+printf '%s  cible   %s %s\n' "$GOLD$B" "$FIN" "$NETWORK"
+printf '%s  sortie  %s %s\n\n' "$GOLD$B" "$FIN" "$OUTDIR"
 
 EXCL=(); [ -n "$EXCLUDE" ] && EXCL=(--exclude "$EXCLUDE")
 if [ "$FULLPORTS" -eq 1 ]; then PORTS=(-p-); else PORTS=(--top-ports 1000); fi
 
+# Passe animée (nmap en arrière-plan + spinner)
 passe() {
   local label="$1"; shift
-  printf '\n%s▸ %s%s\n' "$or" "$label" "$fin"
-  local t0 t1; t0=$(date +%s)
-  nmap "$@" || dire "nmap a retourné un code non nul (on continue)"
-  t1=$(date +%s); dire "terminé en $((t1 - t0))s"
+  local t0 t1 rc i=0
+  t0=$(date +%s)
+  nmap "$@" >/dev/null 2>&1 &
+  local pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    printf '\r  %s%s%s  %s' "$CYAN" "${FR[$((i % NF))]}" "$FIN" "$label"
+    i=$((i+1)); sleep 0.1
+  done
+  wait "$pid"; rc=$?
+  t1=$(date +%s)
+  if [ "$rc" -eq 0 ]; then
+    printf '\r  %s✓%s  %s %s(%ss)%s\n' "$GRN" "$FIN" "$label" "$DIM" "$((t1-t0))" "$FIN"
+  else
+    printf '\r  %s▲%s  %s %s(%ss, code %s — on continue)%s\n' "$YEL" "$FIN" "$label" "$DIM" "$((t1-t0))" "$rc" "$FIN"
+  fi
+}
+
+# Synthèse : 00_SYNTHESE.md (signal vs bruit)
+synthese() {
+  local S="$OUTDIR/00_SYNTHESE.md"
+  local TCP="$OUTDIR/02_tcp.gnmap" UDP="$OUTDIR/03_udp.gnmap" CVE="$OUTDIR/04_cve.nmap"
+  {
+  echo "# Synthèse d'audit réseau (Carte du Maraudeur)"
+  echo
+  echo "- **Réseau :** $NETWORK"
+  echo "- **Hôtes vivants :** ${NLIVE:-?}"
+  echo "- **Dossier :** \`$OUTDIR\`"
+  echo "- **Généré le :** $(date '+%Y-%m-%d %H:%M')"
+  echo
+  echo "## Inventaire — ports TCP ouverts"
+  echo
+  [ -f "$TCP" ] && awk -F'\t' '
+    /^Host:/ {
+      split($1,a," "); ip=a[2]; name=a[3]; gsub(/[()]/,"",name); ports=""
+      if ($2 ~ /^Ports:/) { p=$2; sub(/^Ports: /,"",p); n=split(p,arr,", ")
+        for (i=1;i<=n;i++) if (arr[i] ~ /\/open\//) {
+          split(arr[i],f,"/"); svc=f[5]; if (svc=="") svc="?"
+          ports=ports f[1]"("svc") " } }
+      if (ports!="") printf "- **%s**%s : %s\n", ip, (name!=""?" ("name")":""), ports
+    }' "$TCP"
+  echo
+  echo "## ⚠️ Points d'attention — services sensibles exposés"
+  echo
+  [ -f "$TCP" ] && awk -F'\t' '
+    BEGIN{ np=split("23 21 2323 445 139 554 1900 5678 3389 5900 111 2049", rp, " ")
+      lbl[23]="Telnet — trafic en clair, identifiants souvent par défaut (RISQUE ÉLEVÉ)"
+      lbl[21]="FTP — souvent en clair"; lbl[2323]="Telnet (port alternatif)"
+      lbl[445]="SMB — partage de fichiers"; lbl[139]="NetBIOS"
+      lbl[554]="RTSP — flux caméra/NVR"; lbl[1900]="UPnP (SSDP)"
+      lbl[5678]="UPnP IGD — peut ouvrir des ports vers Internet"
+      lbl[3389]="RDP — bureau à distance"; lbl[5900]="VNC"
+      lbl[111]="RPCbind"; lbl[2049]="NFS" }
+    /^Host:/ { split($1,a," "); ip=a[2]
+      for (k=1;k<=np;k++){ port=rp[k]
+        if ($2 ~ ("(^|[^0-9])" port "/open/")) found[port]=found[port] ip " " } }
+    END{ any=0
+      for (k=1;k<=np;k++){ port=rp[k]
+        if (port in found){ any=1; printf "- **%s** (%s) : %s\n", lbl[port], port, found[port] } }
+      if (!any) print "- Aucun service sensible courant détecté en TCP." }' "$TCP"
+  [ -f "$UDP" ] && awk -F'\t' '
+    /^Host:/ { split($1,a," "); ip=a[2]
+      if ($2 ~ /(^|[^0-9])161\/open/) snmp=snmp ip " "
+      if ($2 ~ /(^|[^0-9])69\/open/)  tftp=tftp ip " " }
+    END{ if (snmp!="") printf "- **SNMP (161/udp)** — chaînes « public » par défaut fréquentes : %s\n", snmp
+         if (tftp!="") printf "- **TFTP (69/udp)** — transfert sans auth : %s\n", tftp }' "$UDP"
+  echo
+  echo "## CVE (vulners) — avec garde-fou faux positifs"
+  echo
+  if [ -f "$CVE" ]; then
+    local total; total=$(grep -c 'CVE-' "$CVE" 2>/dev/null || echo 0)
+    echo "Total brut : **$total** entrées CVE listées (⚠️ brut = non trié)."
+    echo
+    awk '
+      /^Nmap scan report for/ { host=$NF; gsub(/[()]/,"",host) }
+      /CVE-[0-9]/ { c[host]++ }
+      END{ for (h in c) print c[h]"\t"h }' "$CVE" | sort -rn | while IFS=$'\t' read -r cnt h; do
+        if [ "${cnt:-0}" -ge 50 ]; then
+          echo "- **$h** : $cnt CVE → 🚩 **très probablement des FAUX POSITIFS** (matching par version sur un CPE générique). À **ignorer** ici et confirmer avec OpenVAS."
+        else
+          echo "- **$h** : $cnt CVE → à examiner (plus plausible)."
+        fi
+    done
+    echo
+    echo "> Rappel : vulners devine par **bannière de version** → faux positifs massifs sur firmware/IoT,"
+    echo "> et angle mort total sur les appareils propriétaires (0 CVE ≠ sûr). Confirmer avec **OpenVAS**."
+  else
+    echo "_(pas de passe CVE dans ce dossier)_"
+  fi
+  echo
+  echo "## Fichiers détaillés"
+  echo
+  echo '| Fichier | Contenu |'
+  echo '|---|---|'
+  echo '| `01_discovery.*` | hôtes découverts |'
+  echo '| `02_tcp.*` | ports / versions / OS |'
+  echo '| `03_udp.*` | UDP (SNMP/UPnP/DNS) |'
+  echo '| `04_cve.*` | CVE (vulners) — à lire avec le garde-fou ci-dessus |'
+  echo '| `05_services.*` | scripts ciblés par service |'
+  } > "$S"
+  echo "$S"
 }
 
 passe "Passe 1/5 · Révélation des présences (découverte)" \
@@ -90,24 +198,21 @@ if [ "$SKIPUDP" -eq 0 ]; then
   passe "Passe 3/5 · Passages secrets (UDP top 30)" \
     -sU --top-ports 30 -T4 --open "$NETWORK" "${EXCL[@]}" -oA "$OUTDIR/03_udp"
 else
-  printf '\n%s▸ Passe 3/5 · UDP ignorée (-U)%s\n' "$or" "$fin"
+  printf '  %s—%s  Passe 3/5 · UDP ignorée (-U)\n' "$DIM" "$FIN"
 fi
 
-if [ -f "$VULNERS_NSE" ]; then
-  passe "Passe 4/5 · Mauvais sorts connus (CVE / vulners)" \
-    -sV --script "$VULNERS_NSE" --script-args mincvss=5.0 -T3 "${PORTS[@]}" -iL "$OUTDIR/cve_targets.txt" -oA "$OUTDIR/04_cve"
-else
-  printf '\n%s▸ Passe 4/5 · vulners.nse introuvable, passe CVE ignorée%s\n' "$or" "$fin"
-fi
+passe "Passe 4/5 · Mauvais sorts connus (CVE / vulners)" \
+  -sV --script vulners --script-args mincvss=5.0 -T3 "${PORTS[@]}" -iL "$OUTDIR/cve_targets.txt" -oA "$OUTDIR/04_cve"
 
 passe "Passe 5/5 · Examen rapproché (scripts ciblés)" \
   -sV -p 23,80,443,554,8000,8080,8443,37777 \
   --script "banner,telnet-encryption,http-title,http-headers,ssl-cert,rtsp-methods" \
   -T3 -iL "$OUTDIR/cve_targets.txt" -oA "$OUTDIR/05_services"
 
-printf '\n%s✦ Méfait accompli.%s\n' "$or" "$fin"
-dire "Parchemin : $OUTDIR"
-ls -1 "$OUTDIR"/*.nmap 2>/dev/null | sed 's/^/   - /'
-dire "Les .xml sont réimportables dans OpenVAS/Metasploit (db_import)."
-printf '\n%s▸ Ports ouverts repérés :%s\n' "$or" "$fin"
-grep -h 'Ports:' "$OUTDIR"/0*.gnmap 2>/dev/null | head -50
+S=$(synthese)
+
+printf '\n%s✦ Méfait accompli.%s\n' "$GOLD" "$FIN"
+dire "Parchemin  : $OUTDIR"
+dire "SYNTHÈSE   : $S  ← commence par ici"
+printf '\n%s──────────────── SYNTHÈSE ────────────────%s\n' "$GOLD" "$FIN"
+cat "$S"
