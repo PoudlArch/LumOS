@@ -15,6 +15,7 @@ set -uo pipefail
 NETWORK="192.168.1.0/24"
 IOT=""; EXCLUDE=""; FULLPORTS=0; SKIPUDP=0
 OUTROOT="$HOME/audits-reseau"
+VULNERS_NSE="/usr/share/nmap/scripts/vulners.nse"   # script CVE embarqué dans LumOS
 
 or=$'\e[38;2;211;166;37m'; rouge=$'\e[31m'; fin=$'\e[0m'
 dire()   { printf '%s✦ %s%s\n' "$or" "$*" "$fin"; }
@@ -92,8 +93,12 @@ else
   printf '\n%s▸ Passe 3/5 · UDP ignorée (-U)%s\n' "$or" "$fin"
 fi
 
-passe "Passe 4/5 · Mauvais sorts connus (CVE / vulners)" \
-  -sV --script vulners --script-args mincvss=5.0 -T3 "${PORTS[@]}" -iL "$OUTDIR/cve_targets.txt" -oA "$OUTDIR/04_cve"
+if [ -f "$VULNERS_NSE" ]; then
+  passe "Passe 4/5 · Mauvais sorts connus (CVE / vulners)" \
+    -sV --script "$VULNERS_NSE" --script-args mincvss=5.0 -T3 "${PORTS[@]}" -iL "$OUTDIR/cve_targets.txt" -oA "$OUTDIR/04_cve"
+else
+  printf '\n%s▸ Passe 4/5 · vulners.nse introuvable, passe CVE ignorée%s\n' "$or" "$fin"
+fi
 
 passe "Passe 5/5 · Examen rapproché (scripts ciblés)" \
   -sV -p 23,80,443,554,8000,8080,8443,37777 \

@@ -7,7 +7,6 @@
 
 # — Reconnaissance et cartographie réseau —
 nmap
-nmap-vulners
 masscan
 dnsutils
 whois
